@@ -35,8 +35,20 @@ FetchContent_MakeAvailable(fpcap)
 pybind11_add_module(_fpcap src/bindings.cpp)
 target_link_libraries(_fpcap PRIVATE fpcap::fpcap)
 
-# Disable MSVC C++20 module scanning (we don't use C++ modules and the scanner
-# fails on Windows because it lacks platform architecture defines)
-set_target_properties(_fpcap PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+if(MSVC)
+    # Disable MSVC C++20 module scanning (we don't use C++ modules and the scanner
+    # fails on Windows because it lacks platform architecture defines)
+    set_target_properties(_fpcap PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+
+    # Fix "No Target Architecture" error: Python.h pulls in winnt.h which needs
+    # _AMD64_/_X86_/_ARM64_ defined. MSVC defines _M_AMD64 intrinsically, but the
+    # macro-to-define chain in winnt.h can fail with certain header include orders
+    # (Python.h + C++20 + recent Windows SDK). Define the architecture explicitly.
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        target_compile_definitions(_fpcap PRIVATE _AMD64_)
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        target_compile_definitions(_fpcap PRIVATE _X86_)
+    endif()
+endif()
 
 install(TARGETS _fpcap LIBRARY DESTINATION .)
