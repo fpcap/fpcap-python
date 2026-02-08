@@ -6,13 +6,6 @@ from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
-PLAT_TO_CMAKE = {
-    "win32": "Win32",
-    "win-amd64": "x64",
-    "win-arm32": "ARM",
-    "win-arm64": "ARM64",
-}
-
 
 class CMakeExtension(Extension):
     def __init__(self, name: str, sourcedir: str = "") -> None:
@@ -30,26 +23,23 @@ class CMakeBuild(build_ext):
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DPython_EXECUTABLE={sys.executable}",
+            f"-DCMAKE_BUILD_TYPE=Release",
         ]
 
         build_args = ["--config", "Release"]
 
-        if sys.platform == "win32":
-            # MSVC: set architecture and output directory per-config
-            single_config = any(
-                x in cmake_generator for x in ("NMake", "Ninja")
-            )
-            contains_arch = any(
-                x in cmake_generator for x in ("ARM", "Win64")
-            )
-            if not single_config and not contains_arch:
-                cmake_args += ["-A", PLAT_TO_CMAKE[self.plat_name]]
-            if not single_config:
+        # On Windows, use Ninja if no generator is specified to avoid
+        # Visual Studio multi-config generator issues with pybind11
+        if sys.platform == "win32" and not cmake_generator:
+            try:
+                import ninja
+                ninja_executable_path = Path(ninja.BIN_DIR) / "ninja"
                 cmake_args += [
-                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={extdir}{os.sep}",
+                    "-GNinja",
+                    f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja_executable_path}",
                 ]
-        else:
-            cmake_args += ["-DCMAKE_BUILD_TYPE=Release"]
+            except ImportError:
+                pass
 
         if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
             if hasattr(self, "parallel") and self.parallel:
