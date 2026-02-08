@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import subprocess
 from pathlib import Path
@@ -27,6 +28,12 @@ class CMakeBuild(build_ext):
         ]
 
         build_args = ["--config", "Release"]
+
+        # On macOS, respect ARCHFLAGS for cross-compilation (e.g. x86_64 on arm64)
+        archflags = os.environ.get("ARCHFLAGS", "")
+        archs = re.findall(r"-arch (\S+)", archflags)
+        if archs:
+            cmake_args.append(f"-DCMAKE_OSX_ARCHITECTURES={';'.join(archs)}")
 
         # On Windows, use Ninja if no generator is specified to avoid
         # Visual Studio multi-config generator issues with pybind11
