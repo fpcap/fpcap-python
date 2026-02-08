@@ -32,4 +32,8 @@ FetchContent_MakeAvailable(fpcap)
 pybind11_add_module(_fpcap src/bindings.cpp)
 target_link_libraries(_fpcap PRIVATE fpcap::fpcap)
 
+# Disable MSVC C++20 module scanning (we don't use C++ modules and the scanner
+# fails on Windows because it lacks platform architecture defines)
+set_target_properties(_fpcap PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+
 install(TARGETS _fpcap LIBRARY DESTINATION .)
