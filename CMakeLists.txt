@@ -10,6 +10,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FetchContent)
 
+# Use CMake's FindPython (not pybind11's legacy compatibility mode)
+set(PYBIND11_FINDPYTHON ON)
+
 # --- Fetch pybind11 ---
 FetchContent_Declare(
     pybind11
