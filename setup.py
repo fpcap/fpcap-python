@@ -6,6 +6,13 @@ from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+PLAT_TO_CMAKE = {
+    "win32": "Win32",
+    "win-amd64": "x64",
+    "win-arm32": "ARM",
+    "win-arm64": "ARM64",
+}
+
 
 class CMakeExtension(Extension):
     def __init__(self, name: str, sourcedir: str = "") -> None:
@@ -18,13 +25,31 @@ class CMakeBuild(build_ext):
         ext_fullpath = Path.cwd() / self.get_ext_fullpath(ext.name)
         extdir = ext_fullpath.parent.resolve()
 
+        cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
+
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DPython_EXECUTABLE={sys.executable}",
-            f"-DCMAKE_BUILD_TYPE=Release",
         ]
 
         build_args = ["--config", "Release"]
+
+        if sys.platform == "win32":
+            # MSVC: set architecture and output directory per-config
+            single_config = any(
+                x in cmake_generator for x in ("NMake", "Ninja")
+            )
+            contains_arch = any(
+                x in cmake_generator for x in ("ARM", "Win64")
+            )
+            if not single_config and not contains_arch:
+                cmake_args += ["-A", PLAT_TO_CMAKE[self.plat_name]]
+            if not single_config:
+                cmake_args += [
+                    f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={extdir}{os.sep}",
+                ]
+        else:
+            cmake_args += ["-DCMAKE_BUILD_TYPE=Release"]
 
         if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
             if hasattr(self, "parallel") and self.parallel:
