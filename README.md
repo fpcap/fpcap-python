@@ -68,6 +68,26 @@ while not reader.is_exhausted():
         pass
 ```
 
+### Packet Data Lifetime
+
+> **Note:** Accessing `packet.data` returns a copy of the raw packet bytes as a Python `bytes`
+> object. The copy is made each time the property is accessed. Internally, the `Packet` holds a
+> pointer into the `PacketReader`'s file buffer, so always access `.data` while the reader is
+> still alive:
+
+```python
+# Safe: access .data while reader exists
+reader = fpcap.PacketReader("capture.pcap")
+for packet in reader:
+    raw_bytes = packet.data  # copies bytes — safe to keep
+
+# Unsafe: accessing .data after the reader is destroyed
+reader = fpcap.PacketReader("capture.pcap")
+packets = list(reader)
+del reader
+packets[0].data  # undefined behavior — reader's buffer is freed
+```
+
 ### Writing packets
 
 Copy packets from one file to another:
